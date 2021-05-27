@@ -10,3 +10,4 @@ data.drop(missing_data, axis = 1, inplace=True)
 
 print(data.head())
 print("종민")
+print("정규")
