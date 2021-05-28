@@ -10,25 +10,16 @@ from sklearn.preprocessing import OneHotEncoder
 
 
 
-## 각자 경로 ##
-#정규
-Path = '/Users/kim-jeonggyu/Python/Dataset/2021VAERS'
-#유미
-
-#형종
-
-#종민
-
 
 ## Data read ## 
 ### The Vaccine Adverse Event Reporting System (VAERS) ###
-dataFrame = pd.read_csv("".join([Path,'/2021VAERSDATA.csv']))
+dataFrame = pd.read_csv('2021VAERSDATA.csv')
 #print("VAERSDATA.csv :\n", data.head())
 
-symptom = pd.read_csv("".join([Path,'/2021VAERSSYMPTOMS.csv']))
+symptom = pd.read_csv('2021VAERSSYMPTOMS.csv')
 #print("VAERSSYMPTOM.csv :\n", symptom.head())
 
-vax = pd.read_csv("".join([Path,'/2021VAERSVAX.csv']))
+vax = pd.read_csv('2021VAERSVAX.csv')
 #print("VAERSVAX.csv :\n", vax.head())
 
 ## Merge 3 datasets into 1 dataset based on 'VAERS_ID'
@@ -144,3 +135,9 @@ data['NUMDAYS'].fillna(median, inplace = True)
 #Drop rows that have null value
 data.dropna(subset = ['STATE'], inplace=True)
 
+########################
+##### OTHER_MEDS #######
+########################
+
+data['OTHER_MEDS'] = map(lambda x: str(x).upper(), data['OTHER_MEDS'])
+#print(data['OHTER_MEDS'].head())
