@@ -138,10 +138,9 @@ median = data['NUMDAYS'].median()
 data['NUMDAYS'].fillna(median, inplace = True)
 
 ########################
-##### Categorical ######
+######## STATE #########
 ########################
 
-print(data.shape)
-data = data.dropna(axis = 0)
-print(data.shape)
+#Drop rows that have null value
+data.dropna(subset = ['STATE'], inplace=True)
 
