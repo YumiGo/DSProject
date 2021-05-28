@@ -3,13 +3,6 @@ import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
 
-from sklearn.preprocessing import OneHotEncoder
-
-# 파일 경로 각자 수정하고 주석처리
-#filename = '/content/2021VAERSDATA.csv'
-
-
-
 
 ## Data read ## 
 ### The Vaccine Adverse Event Reporting System (VAERS) ###
@@ -45,7 +38,7 @@ print(data.shape)
 # 'NUMDAYS'는 백신을 맞은 후 부작용이 일어나기 까지 시간
 # 'ONSET_DATE' - 'VAX_DATE' 이다.
 # 15개의 column만 사용
-data = data[['VAERS_ID', 'STATE', 'AGE_YRS', 'SEX', 'RECOVD', 'NUMDAYS', 'OTHER_MEDS', 'CUR_ILL', 'ALLERGIES', 'SYMPTOM1', 'SYMPTOM2', 'SYMPTOM3', 'SYMPTOM4', 'SYMPTOM5','VAX_MANU']]
+data = data[['STATE', 'AGE_YRS', 'SEX', 'RECOVD', 'NUMDAYS', 'OTHER_MEDS', 'CUR_ILL', 'ALLERGIES', 'SYMPTOM1', 'SYMPTOM2', 'SYMPTOM3', 'SYMPTOM4', 'SYMPTOM5','VAX_MANU']]
 #print(data)
 
 # Find columns that have non numeric values
@@ -97,7 +90,7 @@ def outliers_iqr(df, feature):
 ########################
 
 #outlier
-plt.figure(figsize=(12,8))
+plt.figure(figsize=(8,6))
 sns.boxplot(data = data['AGE_YRS'], color = 'orange')
 #plt.show()
 
@@ -115,7 +108,6 @@ data['AGE_YRS'].fillna(median, inplace = True)
 ########################
 
 #outlier
-plt.figure(figsize=(12,8))
 sns.boxplot(data = data['NUMDAYS'], color = 'blue')
 #plt.show()
 
@@ -132,12 +124,60 @@ data['NUMDAYS'].fillna(median, inplace = True)
 ######## STATE #########
 ########################
 
-#Drop rows that have null value
-data.dropna(subset = ['STATE'], inplace=True)
+#Fill null value using method = 'ffill'
+data['STATE'].fillna(method = 'ffill' , inplace=True)
 
 ########################
-##### OTHER_MEDS #######
+###### OTHER_MEDS ######
+####### CUR_ILL ########
+###### ALLERGIES #######
 ########################
 
-data['OTHER_MEDS'] = map(lambda x: str(x).upper(), data['OTHER_MEDS'])
-#print(data['OHTER_MEDS'].head())
+data['OTHER_MEDS'] = data['OTHER_MEDS'].str.upper()
+data['CUR_ILL'] = data['CUR_ILL'].str.upper()
+data['ALLERGIES'] = data['ALLERGIES'].str.upper()
+
+data['OTHER_MEDS'].replace(['','NONE','N/A','NONE.','NA','NO','UNKNOWN','NONE KNOWN','NKA','NKDA','NONE KNOWN','NONE REPORTED'], np.nan, inplace = True)
+data['CUR_ILL'].replace(['','NONE','N/A','NONE.','NA','NO','UNKNOWN','NONE KNOWN','NKA','NKDA','NONE KNOWN','NONE REPORTED'], np.nan, inplace = True)
+data['ALLERGIES'].replace(['','NONE','N/A','NONE.','NA','NO','UNKNOWN','NONE KNOWN','NKA','NKDA','NO KNOWN ALLERGIES','NONE KNOWN','NONE REPORTED'], np.nan, inplace = True)
+
+data.dropna(subset = ['OTHER_MEDS'], inplace=True)
+data.dropna(subset = ['CUR_ILL'], inplace=True)
+data.dropna(subset = ['ALLERGIES'], inplace=True)
+
+########################
+######### SEX ##########
+########################
+
+#Fill null value using method = 'ffill'
+data['SEX'].replace('U', np.nan, inplace = True)
+data['SEX'].fillna(method = 'ffill' , inplace=True)
+print(data['SEX'].value_counts())
+
+########################
+####### RECOVD #########
+########################
+
+data['RECOVD'].replace(['U',' '], np.nan, inplace = True)
+data['RECOVD'].fillna(method = 'ffill' , inplace=True)
+print(data['RECOVD'].value_counts())
+print(data['SYMPTOM1'].value_counts())
+
+############################### Scaling and Encoding ######################
+from sklearn.preprocessing import LabelEncoder
+from sklearn.preprocessing import OneHotEncoder
+
+data_label = data.copy()
+data_onehot = data.copy()
+
+# Label encoder
+lable_encoder = LabelEncoder()
+for x in data_label:
+    if data_label[x].dtypes == 'object':
+        data_label[x] = lable_encoder.fit_transform(data_label[x])
+   
+
+
+   
+
+
