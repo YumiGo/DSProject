@@ -10,7 +10,7 @@ from sklearn.preprocessing import OneHotEncoder
 from sklearn.preprocessing import LabelEncoder
 vaers_cat = vaers.drop(['AGE_YRS', 'NUMDAYS'], axis = 1) # vaers_cat: train_set의 categorical data만 있음
 num_attribs = ['AGE_YRS', 'NUMDAYS'] # numerical한 feature들
-cat_attribs = list(data_cat) # categorical한 feature들
+cat_attribs = list(vaers_cat) # categorical한 feature들
 # 1. Standard, One hot
 pipeline1 = ColumnTransformer([
     ("num", StandardScaler(), num_attribs),
