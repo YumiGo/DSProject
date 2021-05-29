@@ -141,9 +141,9 @@ data['OTHER_MEDS'].replace(['','NONE','N/A','NONE.','NA','NO','UNKNOWN','NONE KN
 data['CUR_ILL'].replace(['','NONE','N/A','NONE.','NA','NO','UNKNOWN','NONE KNOWN','NKA','NKDA','NONE KNOWN','NONE REPORTED'], np.nan, inplace = True)
 data['ALLERGIES'].replace(['','NONE','N/A','NONE.','NA','NO','UNKNOWN','NONE KNOWN','NKA','NKDA','NO KNOWN ALLERGIES','NONE KNOWN','NONE REPORTED'], np.nan, inplace = True)
 
-data.dropna(subset = ['OTHER_MEDS'], inplace=True)
-data.dropna(subset = ['CUR_ILL'], inplace=True)
-data.dropna(subset = ['ALLERGIES'], inplace=True)
+data['OTHER_MEDS'].fillna('None', inplace = True)
+data['CUR_ILL'].fillna('None', inplace = True)
+data['ALLERGIES'].fillna('None', inplace = True)
 
 ########################
 ######### SEX ##########
