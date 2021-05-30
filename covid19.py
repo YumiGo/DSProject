@@ -3,7 +3,6 @@ import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
 
-
 ## Data read ## 
 ### The Vaccine Adverse Event Reporting System (VAERS) ###
 dataFrame = pd.read_csv('2021VAERSDATA.csv')
@@ -18,7 +17,7 @@ vax = pd.read_csv('2021VAERSVAX.csv')
 ## Merge 3 datasets into 1 dataset based on 'VAERS_ID'
 dataFrame1 = pd.merge(dataFrame, symptom, on = 'VAERS_ID')
 data = pd.merge(dataFrame1, vax, on = 'VAERS_ID')
-print(data.shape)
+#print(data.shape)
 
 # Columns of Dataset
 #print(focus1.columns)
@@ -44,10 +43,9 @@ data = data[['STATE', 'AGE_YRS', 'SEX', 'RECOVD', 'NUMDAYS', 'OTHER_MEDS', 'CUR_
 # Find columns that have non numeric values
 # To check if they are useful or not
 # Print object columns names
-# 0: VAERS_ID
 # 2: AGE_YRS 
 # 5: NUMDAYS
-# 세개 제외하고 전부 non numeric value
+# 두개 제외하고 전부 non numeric value
 
 ot = pd.DataFrame(data.dtypes == 'object').reset_index()
 object_type = ot[ot[0] == True]['index']
@@ -95,7 +93,7 @@ sns.boxplot(data = data['AGE_YRS'], color = 'orange')
 #plt.show()
 
 age_outlier_index = outliers_iqr(data, ['AGE_YRS'])
-print(data.loc[age_outlier_index, 'AGE_YRS'])
+#print(data.loc[age_outlier_index, 'AGE_YRS'])
 
 #Drop outlier data ['AGE_YRS']
 data = data.drop(age_outlier_index, axis = 0).reset_index(drop=True)
@@ -112,7 +110,7 @@ sns.boxplot(data = data['NUMDAYS'], color = 'blue')
 #plt.show()
 
 num_outlier_index = outliers_iqr(data, ['NUMDAYS'])
-print(data.loc[num_outlier_index, 'NUMDAYS'])
+#print(data.loc[num_outlier_index, 'NUMDAYS'])
 
 #Drop outlier data ['NUMDAYS']
 data = data.drop(num_outlier_index, axis = 0).reset_index(drop=True)
@@ -141,10 +139,27 @@ data['OTHER_MEDS'].replace(['','NONE','N/A','NONE.','NA','NO','UNKNOWN','NONE KN
 data['CUR_ILL'].replace(['','NONE','N/A','NONE.','NA','NO','UNKNOWN','NONE KNOWN','NKA','NKDA','NONE KNOWN','NONE REPORTED'], np.nan, inplace = True)
 data['ALLERGIES'].replace(['','NONE','N/A','NONE.','NA','NO','UNKNOWN','NONE KNOWN','NKA','NKDA','NO KNOWN ALLERGIES','NONE KNOWN','NONE REPORTED'], np.nan, inplace = True)
 
-data['OTHER_MEDS'].fillna('None', inplace = True)
-data['CUR_ILL'].fillna('None', inplace = True)
+data['OTHER_MEDS'].fillna('NONE', inplace = True)
+data['CUR_ILL'].fillna('NONE', inplace = True)
 data['ALLERGIES'].fillna('None', inplace = True)
 
+
+#Allergies를 가지고 있는 개수로 변경
+# ALL_COUNT 행 만들어서 넣고 
+# 이후에 ALLERGIES 삭제
+
+data['ALL_COUNT'] = 0
+for key, value in data['ALLERGIES'].iteritems():
+    count = 0
+    words = value.replace(' ','')
+    words = words.replace('AND',',')
+    split = words.split(',')
+
+    for j in split:
+        count += 1;   
+    data['ALL_COUNT'].loc[key] = count
+    
+data.drop('ALLERGIES', axis = 1, inplace = True)
 ########################
 ######### SEX ##########
 ########################
@@ -152,7 +167,7 @@ data['ALLERGIES'].fillna('None', inplace = True)
 #Fill null value using method = 'ffill'
 data['SEX'].replace('U', np.nan, inplace = True)
 data['SEX'].fillna(method = 'ffill' , inplace=True)
-print(data['SEX'].value_counts())
+#print(data['SEX'].value_counts())
 
 ########################
 ####### RECOVD #########
@@ -160,9 +175,7 @@ print(data['SEX'].value_counts())
 
 data['RECOVD'].replace(['U',' '], np.nan, inplace = True)
 data['RECOVD'].fillna(method = 'ffill' , inplace=True)
-print(data['RECOVD'].value_counts())
-print(data['SYMPTOM1'].value_counts())
-print(data.shape)
+#print(data['RECOVD'].value_counts())
 
 ############################### Scaling and Encoding ######################
 from sklearn.preprocessing import LabelEncoder
