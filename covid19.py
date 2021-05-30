@@ -143,12 +143,12 @@ data['OTHER_MEDS'].replace(['','NONE','N/A','NONE.','NA','NO','UNKNOWN','NONE KN
 data['CUR_ILL'].replace(['','NONE','N/A','NONE.','NA','NO','UNKNOWN','NONE KNOWN','NKA','NKDA','NONE KNOWN','NONE REPORTED'], np.nan, inplace = True)
 data['ALLERGIES'].replace(['','NONE','N/A','NONE.','NA','NO','UNKNOWN','NONE KNOWN','NKA','NKDA','NO KNOWN ALLERGIES','NONE KNOWN','NONE REPORTED'], np.nan, inplace = True)
 
-data['OTHER_MEDS'].fillna('NONE', inplace = True)
-data['CUR_ILL'].fillna('NONE', inplace = True)
+data['OTHER_MEDS'].fillna('None', inplace = True)
+data['CUR_ILL'].fillna('None', inplace = True)
 data['ALLERGIES'].fillna('None', inplace = True)
 
 
-#Allergies를 가지고 있는 개수로 변경
+# Allergies를 가지고 있는 개수로 변경
 # ALL_COUNT 행 만들어서 넣고 
 # 이후에 ALLERGIES 삭제
 
@@ -160,7 +160,7 @@ for key, value in data['ALLERGIES'].iteritems():
     split = words.split(',')
 
     for j in split:
-        count += 1;   
+        count += 1
     
     if(value == 'None'):
         data['ALL_COUNT'].loc[key] = 0
@@ -168,7 +168,28 @@ for key, value in data['ALLERGIES'].iteritems():
         data['ALL_COUNT'].loc[key] = count
     
 data.drop('ALLERGIES', axis = 1, inplace = True)
-print(data['ALL_COUNT'].value_counts())
+#print(data['ALL_COUNT'].value_counts())
+
+# OTHER_MEDS 처리 
+# 있으면 1 없으면 0
+for key, value in data['OTHER_MEDS'].iteritems():
+    if (value == 'None'):
+        data['OTHER_MEDS'][key] = 0
+    else:
+        data['OTHER_MEDS'][key] = 1
+print(data['OTHER_MEDS'].value_counts())
+
+        
+# CUR_ILL 처리 
+# 있으면 1 없으면 0
+for key, value in data['CUR_ILL'].iteritems():
+    if (value == 'None'):
+        data['CUR_ILL'][key] = 0
+    else:
+        data['CUR_ILL'][key] = 1
+print(data['CUR_ILL'].value_counts())
+
+
 ########################
 ######### SEX ##########
 ########################
