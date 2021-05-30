@@ -157,9 +157,14 @@ for key, value in data['ALLERGIES'].iteritems():
 
     for j in split:
         count += 1;   
-    data['ALL_COUNT'].loc[key] = count
+    
+    if(value == 'None'):
+        data['ALL_COUNT'].loc[key] = 0
+    else:
+        data['ALL_COUNT'].loc[key] = count
     
 data.drop('ALLERGIES', axis = 1, inplace = True)
+print(data['ALL_COUNT'].value_counts())
 ########################
 ######### SEX ##########
 ########################
