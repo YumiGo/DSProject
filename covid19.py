@@ -162,6 +162,7 @@ data['RECOVD'].replace(['U',' '], np.nan, inplace = True)
 data['RECOVD'].fillna(method = 'ffill' , inplace=True)
 print(data['RECOVD'].value_counts())
 print(data['SYMPTOM1'].value_counts())
+print(data.shape)
 
 ############################### Scaling and Encoding ######################
 from sklearn.preprocessing import LabelEncoder
