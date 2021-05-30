@@ -2,6 +2,8 @@ import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
+pd.set_option('display.max_row', 200)
+pd.set_option('display.max_columns', 200)
 
 ## Data read ## 
 ### The Vaccine Adverse Event Reporting System (VAERS) ###
@@ -41,7 +43,7 @@ print(data.shape)
 # 'NUMDAYS'는 백신을 맞은 후 부작용이 일어나기 까지 시간
 # 'ONSET_DATE' - 'VAX_DATE' 이다.
 # 15개의 column만 사용
-data = data[['STATE', 'AGE_YRS', 'SEX', 'RECOVD', 'NUMDAYS', 'OTHER_MEDS', 'CUR_ILL', 'ALLERGIES', 'SYMPTOM1', 'SYMPTOM2', 'SYMPTOM3', 'SYMPTOM4', 'SYMPTOM5','VAX_MANU']]
+data = data[['STATE', 'AGE_YRS', 'SEX', 'RECOVD', 'NUMDAYS', 'OTHER_MEDS', 'CUR_ILL', 'ALLERGIES', 'SYMPTOM1','VAX_MANU']]
 #print(data)
 
 # Find columns that have non numeric values
@@ -50,18 +52,6 @@ data = data[['STATE', 'AGE_YRS', 'SEX', 'RECOVD', 'NUMDAYS', 'OTHER_MEDS', 'CUR_
 # 2: AGE_YRS 
 # 5: NUMDAYS
 # 두개 제외하고 전부 non numeric value
-
-ot = pd.DataFrame(data.dtypes == 'object').reset_index()
-object_type = ot[ot[0] == True]['index']
-#print(object_type)
-#print()
-
-# Find column that have numeric values
-# To check if they are useful or not
-num_type = pd.DataFrame(data.dtypes != 'object').reset_index().rename(columns={0: 'yes/no'})
-num_type = num_type[num_type['yes/no'] == True]['index']
-#print(num_type)
-#print(data[num_type]['AGE_YRS'].value_counts())
 
 #outlier 지워주는 함수
 from collections import Counter
@@ -104,6 +94,7 @@ data = data.drop(age_outlier_index, axis = 0).reset_index(drop=True)
 
 median = data['AGE_YRS'].median()
 data['AGE_YRS'].fillna(median, inplace = True)
+
 
 ########################
 ####### NUMDAYS ########
@@ -168,7 +159,14 @@ for key, value in data['ALLERGIES'].iteritems():
         data['ALL_COUNT'].loc[key] = count
     
 data.drop('ALLERGIES', axis = 1, inplace = True)
-#print(data['ALL_COUNT'].value_counts())
+
+#Drop outlier data ['ALL_COUNT']
+count_outlier_index = outliers_iqr(data, ['NUMDAYS'])
+
+data = data.drop(count_outlier_index, axis = 0).reset_index(drop=True)
+
+median = data['ALL_COUNT'].median()
+data['ALL_COUNT'].fillna(median, inplace = True)
 
 # OTHER_MEDS 처리 
 # 있으면 1 없으면 0
@@ -207,10 +205,27 @@ data['RECOVD'].replace(['U',' '], np.nan, inplace = True)
 data['RECOVD'].fillna(method = 'ffill' , inplace=True)
 #print(data['RECOVD'].value_counts())
 
+## SYMPTOM1 가보자 ##
+sym = data['SYMPTOM1'].copy()
+for i in sym.value_count():
+    print(i)
+
+#-------------------- 이후에는 인코딩 및 스케일링 -----------------------
+
+ot = pd.DataFrame(data.dtypes == 'object').reset_index()
+object_type = ot[ot[0] == True]['index']
+print("object type: ",object_type)
+print()
+
+# Find column that have numeric values
+# To check if they are useful or not
+num_type = pd.DataFrame(data.dtypes != 'object').reset_index().rename(columns={0: 'yes/no'})
+num_type = num_type[num_type['yes/no'] == True]['index']
+print("num_type",num_type)
+
 ############################### Scaling and Encoding ######################
 from sklearn.preprocessing import LabelEncoder
 from sklearn.preprocessing import OneHotEncoder
-
 data_label = data.copy()
 data_onehot = data.copy()
 
@@ -220,8 +235,87 @@ for x in data_label:
     if data_label[x].dtypes == 'object':
         data_label[x] = lable_encoder.fit_transform(data_label[x])
    
+print(data_label.head())
+
+X = data_label[['STATE','AGE_YRS','SEX','RECOVD','NUMDAYS','OTHER_MEDS','CUR_ILL','VAX_MANU','ALL_COUNT']]
+y = data_label['SYMPTOM1']
+
+from sklearn.model_selection import train_test_split
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=0)
+
+# -------------------------------------------- StandardScaler ----------------
+from sklearn.preprocessing import StandardScaler
+
+ss = StandardScaler()
+X_train_scale = ss.fit_transform(X_train)
+X_test_scale = ss.transform(X_test)
+
+# Set HyperParameters of KNeighborsClassifier
+grid_params_knn = {
+    'n_neighbors': np.arange(3, 30),
+    'weights': ['uniform', 'distance'],
+    'metric': ['euclidean', 'manhattan']
+}
+
+from sklearn.model_selection import GridSearchCV
+from sklearn.neighbors import KNeighborsClassifier
+from sklearn.tree import DecisionTreeClassifier
+
+gs_knn = GridSearchCV(KNeighborsClassifier(), grid_params_knn, verbose=1, cv=5, n_jobs=-1)
+gs_knn.fit(X_train_scale, y_train)
+
+# Show the model performance of train set
+print("Standard Scaler, KNN Classifier")
+print("best_parameter: ", gs_knn.best_params_)
+print("best_train_score: ", gs_knn.best_score_)
 
 
-   
+grid_params_dt = {
+    'min_samples_split': [2, 3, 4],
+    'max_features': [3, 5, 7],
+    'max_depth': [3, 5, 7],
+    'max_leaf_nodes': list(range(7, 100))
+}
 
+# Make GridSearchCV with DecisionTreeClassifier
+# make model by fit train dataset
+gs_dt = GridSearchCV(DecisionTreeClassifier(), grid_params_dt, verbose=1, cv=3, n_jobs=-1)
+gs_dt.fit(X_train_scale, y_train)
 
+# Show the model performance of train set
+print("Standard Scaler, DecisionTree Classifier")
+print("best_parameter: ", gs_dt.best_params_)
+print("best_train_score: %.2f" % gs_dt.best_score_)
+
+# Show the score of model from test set
+dt_score = gs_dt.score(X_test, y_test)
+print("test_score: %.2f" % dt_score)
+print()
+
+# -------------------------------------------- RobustScaler ----------------
+
+# Robust Scaling
+from sklearn.preprocessing import RobustScaler
+
+rb = RobustScaler()
+X_train_scale = rb.fit_transform(X_train)
+X_test_scale = rb.transform(X_test)
+
+grid_params_knn = {
+    'n_neighbors': np.arange(3, 30),
+    'weights': ['uniform', 'distance'],
+    'metric': ['euclidean', 'manhattan']
+}
+
+gs_knn = GridSearchCV(KNeighborsClassifier(), grid_params_knn, verbose=1, cv=5, n_jobs=-1)
+gs_knn.fit(X_train_scale, y_train)
+
+# Show the model performance of train set
+print("Robust Scaler, KNN Classifier")
+print("best_parameter: ", gs_knn.best_params_)
+print("best_train_score: %.2f" % gs_knn.best_score_)
+
+# Show the score of model from test set
+knn_score = gs_knn.score(X_test, y_test)
+print("test_score: %.2f" % knn_score)
+print()
