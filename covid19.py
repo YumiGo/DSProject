@@ -187,6 +187,15 @@ for key, value in data['CUR_ILL'].iteritems():
         data['CUR_ILL'][key] = 1
 print(data['CUR_ILL'].value_counts())
 
+######################### SYMPTOM1 카테고리 정리########################
+data['SYMPTOM1'].astype('category').cat.categories
+counts = data['SYMPTOM1'].value_counts()
+pd.DataFrame(counts, columns = ['symptom', 'case'])
+
+for key, value in data['SYMPTOM1'].iteritems():
+    if counts[value] < 100:
+        data.drop(key, axis = 0, inplace =True)
+# data.shape
 
 ########################
 ######### SEX ##########
