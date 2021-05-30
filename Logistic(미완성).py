@@ -20,7 +20,6 @@ def loss_func(x, t):
 def numerical_derivative(f, x):
   delta_x = 1e-4    # 0.0001
   grad = np.zeros_like(x)
-
   it = np.nditer(x, flags = ['multi_index'], op_flags=['readwrite'])
 
   while not it.finished:
