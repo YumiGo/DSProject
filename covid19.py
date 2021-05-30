@@ -2,8 +2,8 @@ import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
-pd.set_option('display.max_row', 200)
-pd.set_option('display.max_columns', 200)
+import warnings
+warnings.filterwarnings('ignore')
 
 ## Data read ## 
 ### The Vaccine Adverse Event Reporting System (VAERS) ###
@@ -215,9 +215,7 @@ data['RECOVD'].fillna(method = 'ffill' , inplace=True)
 #print(data['RECOVD'].value_counts())
 
 ## SYMPTOM1 가보자 ##
-sym = data['SYMPTOM1'].copy()
-for i in sym.value_count():
-    print(i)
+
 
 #-------------------- 이후에는 인코딩 및 스케일링 -----------------------
 
