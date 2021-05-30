@@ -195,7 +195,68 @@ pd.DataFrame(counts, columns = ['symptom', 'case'])
 for key, value in data['SYMPTOM1'].iteritems():
     if counts[value] < 100:
         data.drop(key, axis = 0, inplace =True)
-# data.shape
+# 이 2개는 부작용이 아니라 의료진 실수임 -> 드랍
+data = data[data.SYMPTOM1 != 'Product administered to patient of inappropriate age']
+data = data[data.SYMPTOM1 != 'Incorrect dose administered']
+
+# 부작용을 단계별로 분류하기
+# 1. 매핑을 위한 딕셔너리 생성
+symptom_to_levels = {
+    'No adverse event': 0,
+    'Unevaluable event': 0,
+    'Chills': 1,
+    'Dizziness': 1,
+    'Fatigue': 1,
+    'Headache': 1,
+    'Asthenia': 1,
+    'Injection site erythema': 1,
+    'Erythema': 1,
+    'Chest discomfort': 1,
+    'Blood pressure increased': 1,
+    'Anxiety': 1,
+    'Body temperature increased': 1,
+    'Injection site pain': 1,
+    'Back pain': 1,
+    'Body temperature': 1,
+    'Blood test': 1,
+    'Myalgia': 1,
+    'Ageusia': 1,
+    'Flushing': 1,
+    'Atrial fibrillation': 1,
+    'Feeling hot': 1,
+    'Paraesthesia': 1,
+    'Dysgeusia':1,
+    'Arthralgia': 2,
+    'Diarrhoea': 2,
+    'Abdominal pain': 2,
+    'Rash': 2,
+    'Pruritus': 2,
+    'Abdominal pain upper': 2,
+    'Chest pain': 2,
+    'Abdominal discomfort': 2,
+    'Axillary pain': 2,
+    'Condition aggravated':2,
+    'Burning sensation': 2,
+    'Pyrexia': 2,
+    'Pyrexia': 2,
+    'Nausea': 2,
+    'Feeling abnormal': 2,
+    'Cough': 2,
+    'Pain': 2,
+    'Dyspnoea': 3,
+    'Hypoaesthesia': 3,
+    'Pain in extremity': 3,
+    'Lymphadenopathy': 3,
+    'Facial paralysis': 3,
+    'Aphasia': 3,
+    'Death': 4,
+    'COVID-19': 4,
+    'Anaphylactic reaction': 4,
+    'Cerebrovascular accident':4,
+    'SARS-CoV-2 test positive':4
+}
+data['LEVEL'] = data['SYMPTOM1'].apply(lambda x: symptom_to_levels[x])
+data.drop('SYMPTOM1', axis = 1, inplace = True)
 
 ########################
 ######### SEX ##########
