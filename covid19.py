@@ -12,16 +12,16 @@ symptom = pd.read_csv('2021VAERSSYMPTOMS.csv')
 #print("VAERSSYMPTOM.csv :\n", symptom.head())
 
 vax = pd.read_csv('2021VAERSVAX.csv')
+vax = vax[vax.VAX_DOSE_SERIES == '1']
 #print("VAERSVAX.csv :\n", vax.head())
 
 ## Merge 3 datasets into 1 dataset based on 'VAERS_ID'
 dataFrame1 = pd.merge(dataFrame, symptom, on = 'VAERS_ID')
 data = pd.merge(dataFrame1, vax, on = 'VAERS_ID')
-
 data = data[data.VAX_TYPE == 'COVID19']
 data=data[data.VAX_NAME.str.contains('COVID19')]
 
-#print(data.shape)
+print(data.shape)
 
 # Columns of Dataset
 #print(focus1.columns)
