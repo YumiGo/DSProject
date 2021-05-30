@@ -1,9 +1,9 @@
 import numpy as np
 
-x_data = [['STATE', 'AGE_YRS', 'SEX', 'RECOVD', 'NUMDAYS', 'OTHER_MEDS', 'CUR_ILL', 'ALLERGIES']]
+x_data = [['AGE_YRS', 'SEX']]
 t_data = [['SYMPTOM1']]
 
-W = np.random.rand(8, 1)
+W = np.random.rand(2, 1)
 b = np.random.rand(1)
 print("W =", W, ", W.shape =", W.shape, ", b =", b, ", b.shape =", b.shape)
 
@@ -73,3 +73,6 @@ for step in range(80001):
 
   if (step % 400 == 0):
     print("step =", step, "error value =", error_val(x_data, t_data), "W =", W, ", b =", b)
+
+test_data = np.array([0, 0])
+predict(test_data)
