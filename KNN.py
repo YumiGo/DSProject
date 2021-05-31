@@ -1,4 +1,205 @@
-# data : covid19.py 에서 data cleaning 완료한 데이터
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+import seaborn as sns
+
+## Data read ##
+### The Vaccine Adverse Event Reporting System (VAERS) ###
+dataFrame = pd.read_csv('2021VAERSDATA.csv',encoding='ISO-8859-1', low_memory=False)
+symptom = pd.read_csv('2021VAERSSYMPTOMS.csv')
+symptom.drop_duplicates(subset=['VAERS_ID'], keep='first', inplace=True, ignore_index=False)
+vax = pd.read_csv('2021VAERSVAX.csv')
+vax.drop_duplicates(subset=['VAERS_ID'], keep='first', inplace=True, ignore_index=False)
+dataFrame1 = pd.merge(dataFrame, symptom, on = 'VAERS_ID')
+data = pd.merge(dataFrame1, vax, on = 'VAERS_ID')
+data = data[data.VAX_TYPE == 'COVID19']
+data = data[data.VAX_NAME.str.contains('COVID19')]
+data = data[['STATE', 'AGE_YRS', 'SEX', 'RECOVD', 'NUMDAYS', 'OTHER_MEDS', 'CUR_ILL', 'ALLERGIES','VAX_MANU', 'SYMPTOM1']]
+
+from collections import Counter
+
+def outliers_iqr(df, feature):
+    out_indexer = []
+    for i in feature:
+        Q1 = df[i].quantile(0.25)
+        Q3 = df[i].quantile(0.75)
+
+        IQR = Q3-Q1
+
+        alt_sinir = Q1 - 1.5 * IQR
+        ust_sinir = Q3 + 1.5 * IQR
+
+        out = ((df[i]<alt_sinir) | (df[i]>ust_sinir))
+
+        out_index = df[i][out].index
+        out_indexer.extend(out_index)
+
+    out_indexer = Counter(out_indexer)
+
+    outlier_index = [i for i, v in out_indexer.items() if v > 0]
+    return outlier_index
+
+
+age_outlier_index = outliers_iqr(data, ['AGE_YRS'])
+data = data.drop(age_outlier_index, axis=0).reset_index(drop=True)  # 행 3개 드랍
+median = data['AGE_YRS'].median()
+data['AGE_YRS'].fillna(median, inplace=True)
+num_outlier_index = outliers_iqr(data, ['NUMDAYS'])
+data = data.drop(num_outlier_index, axis=0).reset_index(drop=True)  # 행 5884개 드랍
+median = data['NUMDAYS'].median()
+data['NUMDAYS'].fillna(median, inplace=True)
+########################
+######## STATE #########
+########################
+data['STATE'].fillna(method='ffill', inplace=True)
+########################
+###### OTHER_MEDS ######
+####### CUR_ILL ########
+###### ALLERGIES #######
+########################
+
+data['OTHER_MEDS'] = data['OTHER_MEDS'].str.upper()
+data['CUR_ILL'] = data['CUR_ILL'].str.upper()
+data['ALLERGIES'] = data['ALLERGIES'].str.upper()
+
+data['OTHER_MEDS'].replace(
+    ['NaN', '', 'NONE', 'N/A', 'NONE.', 'NA', 'NO', 'UNKNOWN', 'NONE KNOWN', 'NKA', 'NKDA', 'NONE KNOWN',
+     'NONE REPORTED'], np.NaN, inplace=True)
+data['CUR_ILL'].replace(
+    ['NaN', 'NONE', 'N/A', 'NONE.', 'NA', 'NO', 'UNKNOWN', 'NONE KNOWN', 'NKA', 'NKDA', 'NONE KNOWN', 'NONE REPORTED'],
+    np.NaN, inplace=True)
+data['ALLERGIES'].replace(
+    ['NaN', '', 'NONE', 'N/A', 'NONE.', 'NA', 'NO', 'UNKNOWN', 'NONE KNOWN', 'NKA', 'NKDA', 'NO KNOWN ALLERGIES',
+     'NONE KNOWN', 'NONE REPORTED'], np.NaN, inplace=True)
+
+data['OTHER_MEDS'].fillna('None', inplace=True)
+data['CUR_ILL'].fillna('None', inplace=True)
+data['ALLERGIES'].fillna('None', inplace=True)
+
+# Allergies를 가지고 있는 개수로 변경
+# ALL_COUNT 행 만들어서 넣고
+# 이후에 ALLERGIES 삭제
+
+data['ALL_COUNT'] = 0
+for key, value in data['ALLERGIES'].iteritems():
+    count = 0
+    words = value.replace(' ', '')
+    words = words.replace('AND', ',')
+    split = words.split(',')
+    for j in split:
+        count += 1;
+    if (value == 'None'):
+        data['ALL_COUNT'].loc[key] = 0
+    else:
+        data['ALL_COUNT'].loc[key] = count
+
+data.drop('ALLERGIES', axis=1, inplace=True)
+
+# OTHER_MEDS 처리
+# 있으면 1 없으면 0
+for key, value in data['OTHER_MEDS'].iteritems():
+    if (value == 'None'):
+        data['OTHER_MEDS'][key] = 0
+    else:
+        data['OTHER_MEDS'][key] = 1
+
+# CUR_ILL 처리
+# 있으면 1 없으면 0
+for key, value in data['CUR_ILL'].iteritems():
+    if (value == 'None'):
+        data['CUR_ILL'][key] = 0
+    else:
+        data['CUR_ILL'][key] = 1
+
+# SYMPTOM1 categories
+data['SYMPTOM1'].astype('category').cat.categories
+counts = data['SYMPTOM1'].value_counts()
+pd.DataFrame(counts, columns = ['symptom', 'case'])
+
+for key, value in data['SYMPTOM1'].iteritems():
+    if counts[value] < 100:
+        data.drop(key, axis = 0, inplace =True)
+
+########################
+######### SEX ##########
+########################
+
+#Fill null value using method = 'ffill'
+data['SEX'].replace('U', np.nan, inplace = True)
+data['SEX'].fillna(method = 'ffill' , inplace=True)
+
+########################
+####### RECOVD #########
+########################
+
+data['RECOVD'].replace(['U',' '], np.nan, inplace = True)
+data['RECOVD'].fillna(method = 'ffill' , inplace=True)
+
+data = data[data.SYMPTOM1 != 'Product administered to patient of inappropriate age']
+
+data = data[data.SYMPTOM1 != 'Incorrect dose administered']
+
+# 부작용을 단계별로 분류하기
+# 1. 매핑을 위한 딕셔너리 생성
+symptom_to_levels = {
+    'No adverse event': 0,
+    'Unevaluable event': 0,
+    'Chills': 1,
+    'Dizziness': 1,
+    'Fatigue': 1,
+    'Headache': 1,
+    'Asthenia': 1,
+    'Injection site erythema': 1,
+    'Erythema': 1,
+    'Chest discomfort': 1,
+    'Blood pressure increased': 1,
+    'Anxiety': 1,
+    'Body temperature increased': 1,
+    'Injection site pain': 1,
+    'Back pain': 1,
+    'Body temperature': 1,
+    'Blood test': 1,
+    'Myalgia': 1,
+    'Ageusia': 1,
+    'Flushing': 1,
+    'Atrial fibrillation': 1,
+    'Feeling hot': 1,
+    'Paraesthesia': 1,
+    'Dysgeusia':1,
+    'Arthralgia': 2,
+    'Diarrhoea': 2,
+    'Abdominal pain': 2,
+    'Rash': 2,
+    'Pruritus': 2,
+    'Abdominal pain upper': 2,
+    'Chest pain': 2,
+    'Abdominal discomfort': 2,
+    'Axillary pain': 2,
+    'Condition aggravated':2,
+    'Burning sensation': 2,
+    'Pyrexia': 2,
+    'Pyrexia': 2,
+    'Nausea': 2,
+    'Feeling abnormal': 2,
+    'Cough': 2,
+    'Pain': 2,
+    'Dyspnoea': 3,
+    'Hypoaesthesia': 3,
+    'Pain in extremity': 3,
+    'Lymphadenopathy': 3,
+    'Facial paralysis': 3,
+    'Aphasia': 3,
+    'Death': 4,
+    'COVID-19': 4,
+    'Anaphylactic reaction': 4,
+    'Cerebrovascular accident':4,
+    'SARS-CoV-2 test positive':4
+}
+
+data['LEVEL'] = data['SYMPTOM1'].apply(lambda x: symptom_to_levels[x])
+
+data.drop('SYMPTOM1', axis = 1, inplace = True)
+
 ############################### Spilt ###############################
 from sklearn.model_selection import train_test_split, GridSearchCV
 
