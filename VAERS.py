@@ -1,4 +1,6 @@
-
+import pandas as pd
+import numpy as np
+from collections import Counter
 from sklearn.model_selection import train_test_split, GridSearchCV
 from sklearn.preprocessing import StandardScaler
 from sklearn.preprocessing import MinMaxScaler
@@ -10,39 +12,23 @@ from sklearn.preprocessing import OrdinalEncoder
 
 class VAERS:
     def __init__(self):
-        ## Data read ##
         import pandas as pd
-        dataFrame = pd.read_csv('2021VAERSDATA.csv', encoding='ISO-8859-1', low_memory=False)
+        data_frame = pd.read_csv('2021VAERSDATA.csv', encoding='ISO-8859-1', low_memory=False)
         symptom = pd.read_csv('2021VAERSSYMPTOMS.csv')
         symptom.drop_duplicates(subset=['VAERS_ID'], keep='first', inplace=True, ignore_index=False)
         vax = pd.read_csv('2021VAERSVAX.csv')
         vax.drop_duplicates(subset=['VAERS_ID'], keep='first', inplace=True, ignore_index=False)
-        dataFrame1 = pd.merge(dataFrame, symptom, on='VAERS_ID')
-        self.data = pd.merge(dataFrame1, vax, on='VAERS_ID')
+        data_frame1 = pd.merge(data_frame, symptom, on='VAERS_ID')
+        self.data = pd.merge(data_frame1, vax, on='VAERS_ID')
         self.data = self.data[self.data.VAX_TYPE == 'COVID19']
         self.data = self.data[self.data.VAX_NAME.str.contains('COVID19')]
         self.data = self.data[
-            ['STATE', 'AGE_YRS', 'SEX', 'RECOVD', 'NUMDAYS', 'OTHER_MEDS', 'CUR_ILL', 'ALLERGIES', 'VAX_MANU', 'SYMPTOM1']]
-    @staticmethod
-    def outliers_iqr(df, feature):
-        from collections import Counter
-        out_indexer = []
-        for i in feature:
-            Q1 = df[i].quantile(0.25)
-            Q3 = df[i].quantile(0.75)
-            IQR = Q3 - Q1
-            alt_sinir = Q1 - 1.5 * IQR
-            ust_sinir = Q3 + 1.5 * IQR
-            out = ((df[i] < alt_sinir) | (df[i] > ust_sinir))
-            out_index = df[i][out].index
-            out_indexer.extend(out_index)
-        out_indexer = Counter(out_indexer)
+            ['STATE', 'AGE_YRS', 'SEX', 'RECOVD', 'NUMDAYS', 'OTHER_MEDS', 'CUR_ILL', 'ALLERGIES', 'VAX_MANU',
+             'SYMPTOM1']]
 
-        outlier_index = [i for i, v in out_indexer.items() if v > 0]
-        return outlier_index
+
 
     def preprocess(self):
-        from collections import Counter
         age_outlier_index = outliers_iqr(self.data, ['AGE_YRS'])
         self.data = self.data.drop(age_outlier_index, axis=0).reset_index(drop=True)  # 행 3개 드랍
         median = self.data['AGE_YRS'].median()
@@ -53,12 +39,7 @@ class VAERS:
         self.data['NUMDAYS'].fillna(median, inplace=True)
         # STATE
         self.data['STATE'].fillna(method='ffill', inplace=True)
-        ########################
-        ###### OTHER_MEDS ######
-        ####### CUR_ILL ########
-        ###### ALLERGIES #######
-        ########################
-
+        # OTHER_MEDS, CUR_ILL, ALLERGIES
         self.data['OTHER_MEDS'] = self.data['OTHER_MEDS'].str.upper()
         self.data['CUR_ILL'] = self.data['CUR_ILL'].str.upper()
         self.data['ALLERGIES'] = self.data['ALLERGIES'].str.upper()
@@ -88,8 +69,8 @@ class VAERS:
             words = words.replace('AND', ',')
             split = words.split(',')
             for j in split:
-                count += 1;
-            if (value == 'None'):
+                count += 1
+            if value == 'None':
                 self.data['ALL_COUNT'].loc[key] = 0
             else:
                 self.data['ALL_COUNT'].loc[key] = count
@@ -99,7 +80,7 @@ class VAERS:
         # OTHER_MEDS 처리
         # 있으면 1 없으면 0
         for key, value in self.data['OTHER_MEDS'].iteritems():
-            if (value == 'None'):
+            if value == 'None':
                 self.data['OTHER_MEDS'][key] = 0
             else:
                 self.data['OTHER_MEDS'][key] = 1
@@ -107,16 +88,11 @@ class VAERS:
         # CUR_ILL 처리
         # 있으면 1 없으면 0
         for key, value in self.data['CUR_ILL'].iteritems():
-            if (value == 'None'):
+            if value == 'None':
                 self.data['CUR_ILL'][key] = 0
             else:
                 self.data['CUR_ILL'][key] = 1
-        # SYMPTOM1 categories
-        self.data['SYMPTOM1'].astype('category').cat.categories
 
-        self.data['SYMPTOM1']
-
-        pd.set_option('display.max_rows', None)
         counts = self.data['SYMPTOM1'].value_counts()
 
         pd.DataFrame(counts, columns=['symptom', 'case'])
@@ -124,19 +100,12 @@ class VAERS:
         for key, value in self.data['SYMPTOM1'].iteritems():
             if counts[value] < 100:
                 self.data.drop(key, axis=0, inplace=True)
-
-        ########################
-        ######### SEX ##########
-        ########################
-
+        # SEX
         # Fill null value using method = 'ffill'
         self.data['SEX'].replace('U', np.nan, inplace=True)
         self.data['SEX'].fillna(method='ffill', inplace=True)
 
-        ########################
-        ####### RECOVD #########
-        ########################
-
+        # RECOVD
         self.data['RECOVD'].replace(['U', ' '], np.nan, inplace=True)
         self.data['RECOVD'].fillna(method='ffill', inplace=True)
 
@@ -180,7 +149,6 @@ class VAERS:
             'Condition aggravated': 2,
             'Burning sensation': 2,
             'Pyrexia': 2,
-            'Pyrexia': 2,
             'Nausea': 2,
             'Feeling abnormal': 2,
             'Cough': 2,
@@ -201,10 +169,10 @@ class VAERS:
         self.data['LEVEL'] = self.data['SYMPTOM1'].apply(lambda x: symptom_to_levels[x])
         self.data.drop('SYMPTOM1', axis=1, inplace=True)
 
-    def split(self, testSize=0.2, random=42):
-        self.train, self.test = train_test_split(self.data, test_size=testSize, random_state=random)
+    def split(self, test=0.2, random=42):
+        self.train, self.test = train_test_split(self.data, test_size=test, random_state=random)
 
-    def scaling(self, s = 'MinMaxScaler', e = 'LabelEncoder'):
+    def scaling(self, s='MinMaxScaler', e='LabelEncoder'):
         train_num = self.train[['AGE_YRS', 'NUMDAYS', 'ALL_COUNT']]
         train_cat = self.train.drop(['AGE_YRS', 'NUMDAYS', 'ALL_COUNT'], axis=1)
         test_num = self.test[['AGE_YRS', 'NUMDAYS', 'ALL_COUNT']]
@@ -304,12 +272,26 @@ class VAERS:
         y_pred = self.bag_clf.predict(self.test_X)
         print('accuarcy score: ', accuracy_score(self.test_y, y_pred))
 
+def outliers_iqr(df, feature):
+    out_indexer = []
+    for i in feature:
+        q1 = df[i].quantile(0.25)
+        q3 = df[i].quantile(0.75)
+        iqr = q3 - q1
+        alt_sinir = q1 - 1.5 * iqr
+        ust_sinir = q3 + 1.5 * iqr
+        out = ((df[i] < alt_sinir) | (df[i] > ust_sinir))
+        out_index = df[i][out].index
+        out_indexer.extend(out_index)
+    out_indexer = Counter(out_indexer)
+    outlier_index = [i for i, v in out_indexer.items() if v > 0]
+    return outlier_index
 
-####################예시 실행 코드############################
-data=VAERS() # 클래스 선언
-data.preprocess() # 전처리 함수 사용 - 이 때 csv 파일 3개가 디렉토리에 있다고 가정함
+#예시 실행 코드
+data = VAERS()  # 클래스 선언
+data.preprocess()  # 전처리 함수 사용 - 이 때 csv 파일 3개가 디렉토리에 있다고 가정함
 data.split(0.2, 42)
 data.scaling('MinMaxScaler', 'OrdinalEncoder')
-data.fit_transform() # BaggingClassifier 훈련
-data.predict(10) # 10개 예측 출력
-data.score() # 정확도 출력
+data.fit_transform()  # BaggingClassifier 훈련
+data.predict(10)  # 10개 예측 출력
+data.score()  # 정확도 출력
