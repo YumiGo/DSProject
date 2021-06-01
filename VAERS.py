@@ -1,4 +1,4 @@
-from collections import Counter
+
 from sklearn.model_selection import train_test_split, GridSearchCV
 from sklearn.preprocessing import StandardScaler
 from sklearn.preprocessing import MinMaxScaler
@@ -22,31 +22,27 @@ class VAERS:
         self.data = self.data[self.data.VAX_TYPE == 'COVID19']
         self.data = self.data[self.data.VAX_NAME.str.contains('COVID19')]
         self.data = self.data[
-            ['STATE', 'AGE_YRS', 'SEX', 'RECOVD', 'NUMDAYS', 'OTHER_MEDS', 'CUR_ILL', 'ALLERGIES', 'VAX_MANU',
-             'SYMPTOM1']]
+            ['STATE', 'AGE_YRS', 'SEX', 'RECOVD', 'NUMDAYS', 'OTHER_MEDS', 'CUR_ILL', 'ALLERGIES', 'VAX_MANU', 'SYMPTOM1']]
     @staticmethod
     def outliers_iqr(df, feature):
+        from collections import Counter
         out_indexer = []
         for i in feature:
             Q1 = df[i].quantile(0.25)
             Q3 = df[i].quantile(0.75)
-
             IQR = Q3 - Q1
-
             alt_sinir = Q1 - 1.5 * IQR
             ust_sinir = Q3 + 1.5 * IQR
-
             out = ((df[i] < alt_sinir) | (df[i] > ust_sinir))
-
             out_index = df[i][out].index
             out_indexer.extend(out_index)
-
         out_indexer = Counter(out_indexer)
 
         outlier_index = [i for i, v in out_indexer.items() if v > 0]
         return outlier_index
 
     def preprocess(self):
+        from collections import Counter
         age_outlier_index = outliers_iqr(self.data, ['AGE_YRS'])
         self.data = self.data.drop(age_outlier_index, axis=0).reset_index(drop=True)  # 행 3개 드랍
         median = self.data['AGE_YRS'].median()
@@ -205,42 +201,10 @@ class VAERS:
         self.data['LEVEL'] = self.data['SYMPTOM1'].apply(lambda x: symptom_to_levels[x])
         self.data.drop('SYMPTOM1', axis=1, inplace=True)
 
-    def split(self):
-        self.train, self.test = train_test_split(self.data, test_size=0.2, random_state=42)
-
-    def split(self, testSize, random):
+    def split(self, testSize=0.2, random=42):
         self.train, self.test = train_test_split(self.data, test_size=testSize, random_state=random)
 
-    def scaling(self):
-        train_num = self.train[['AGE_YRS', 'NUMDAYS', 'ALL_COUNT']]
-        train_cat = self.train.drop(['AGE_YRS', 'NUMDAYS', 'ALL_COUNT'], axis=1)
-        test_num = self.test[['AGE_YRS', 'NUMDAYS', 'ALL_COUNT']]
-        test_cat = self.test.drop(['AGE_YRS', 'NUMDAYS', 'ALL_COUNT'], axis=1)
-
-        scaler = MinMaxScaler()
-        encoder = OrdinalEncoder()
-        # 인코딩
-        train_cat_encoded = encoder.fit_transform(train_cat)
-        test_cat_encoded = encoder.fit_transform(test_cat)
-        # 데이터 프레임으로 변환
-        train_cat_encoded = pd.DataFrame(train_cat_encoded, columns=list(train_cat))
-        test_cat_encoded = pd.DataFrame(test_cat_encoded, columns=list(test_cat))
-        # 스케일링
-        train_num_scaled = scaler.fit_transform(train_num)
-        test_num_scaled = scaler.fit_transform(test_num)
-        # 스케일링 - 데이터 프레임으로 변환
-        train_num_scaled = pd.DataFrame(train_num_scaled, columns=['AGE_YRS', 'NUMDAYS', 'ALL_COUNT'])
-        test_num_scaled = pd.DataFrame(test_num_scaled, columns=['AGE_YRS', 'NUMDAYS', 'ALL_COUNT'])
-        # 스케일링, 인코딩 완료한 데이터들을 합친다
-        train_prepared = pd.concat([train_num_scaled, train_cat_encoded], axis=1)
-        test_prepared = pd.concat([test_num_scaled, test_cat_encoded], axis=1)
-        # 스케일링, 인코딩 완료한 데이터들을 X와 y로 나눈다
-        self.train_X = train_prepared.drop('LEVEL', axis=1)
-        self.train_y = train_prepared['LEVEL'].copy()
-        self.test_X = test_prepared.drop('LEVEL', axis=1)
-        self.test_y = test_prepared['LEVEL'].copy()
-
-    def scaling(self, s, e):
+    def scaling(self, s = 'MinMaxScaler', e = 'LabelEncoder'):
         train_num = self.train[['AGE_YRS', 'NUMDAYS', 'ALL_COUNT']]
         train_cat = self.train.drop(['AGE_YRS', 'NUMDAYS', 'ALL_COUNT'], axis=1)
         test_num = self.test[['AGE_YRS', 'NUMDAYS', 'ALL_COUNT']]
