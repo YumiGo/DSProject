@@ -1,6 +1,9 @@
 import pandas as pd
 import numpy as np
 from collections import Counter
+from sklearn.ensemble import BaggingClassifier
+from sklearn.tree import DecisionTreeClassifier
+from sklearn.metrics import accuracy_score
 from sklearn.model_selection import train_test_split, GridSearchCV
 from sklearn.preprocessing import StandardScaler
 from sklearn.preprocessing import MinMaxScaler
@@ -170,107 +173,194 @@ class VAERS:
         self.data.drop('SYMPTOM1', axis=1, inplace=True)
 
     def split(self, test=0.2, random=42):
-        self.train, self.test = train_test_split(self.data, test_size=test, random_state=random)
+        X = self.data.drop("LEVEL", axis=1)
+        y = self.data["LEVEL"].copy()
+        X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=test, random_state=random)
 
-    def scaling(self, s='MinMaxScaler', e='LabelEncoder'):
-        train_num = self.train[['AGE_YRS', 'NUMDAYS', 'ALL_COUNT']]
-        train_cat = self.train.drop(['AGE_YRS', 'NUMDAYS', 'ALL_COUNT'], axis=1)
-        test_num = self.test[['AGE_YRS', 'NUMDAYS', 'ALL_COUNT']]
-        test_cat = self.test.drop(['AGE_YRS', 'NUMDAYS', 'ALL_COUNT'], axis=1)
-        if s == 'StandardScaler':
-            scaler = StandardScaler()
-        if s == 'MinMaxScaler':
-            scaler = MinMaxScaler()
-        if s == 'RobustScaler':
-            scaler = RobustScaler()
-        if s == 'MaxAbsScaler':
-            scaler = MaxAbsScaler()
-        if e == 'OrdinalEncoder':
-            encoder = OrdinalEncoder()
+        X_train_num = X_train[['AGE_YRS', 'NUMDAYS', 'ALL_COUNT']]
+        X_train_cat = X_train.drop(['AGE_YRS', 'NUMDAYS', 'ALL_COUNT'], axis=1)
+        X_test_num = X_test[['AGE_YRS', 'NUMDAYS', 'ALL_COUNT']]
+        X_test_cat = X_test.drop(['AGE_YRS', 'NUMDAYS', 'ALL_COUNT'], axis=1)
+        return X_train_num, X_train_cat, y_train, X_test_num, X_test_cat, y_test
+
+    def scaling_encoding(self, X_train_num, X_train_cat, y_train,  X_test_num, X_test_cat, y_test, s1, s2,
+                         s3, s4, e1, e2=None):
+        s = []
+        e = []
+        scaler = []
+        num_attribs = list(X_train_num)
+        cat_attribs = list(X_train_cat)
+        cat_len = len(X_train_cat.columns)
+
+        count_scaler = 0
+        count_encoder = 0
+
+        if s1 == 'Standard':
+            scaler.append(StandardScaler())
+            s.append(s1)
+            count_scaler = count_scaler + 1
+        if s1 == 'MinMax':
+            scaler.append(MinMaxScaler())
+            s.append(s1)
+            count_scaler = count_scaler + 1
+        if s1 == 'Robust':
+            scaler.append(RobustScaler())
+            s.append(s1)
+            count_scaler = count_scaler + 1
+        if s1 == 'MaxAbs':
+            scaler.append(MaxAbsScaler())
+            s.append(s1)
+            count_scaler = count_scaler + 1
+        if s2 == 'Standard':
+            scaler.append(StandardScaler())
+            s.append(s2)
+            count_scaler = count_scaler + 1
+        if s2 == 'MinMax':
+            scaler.append(MinMaxScaler())
+            s.append(s2)
+            count_scaler = count_scaler + 1
+        if s2 == 'Robust':
+            scaler.append(RobustScaler())
+            s.append(s2)
+            count_scaler = count_scaler + 1
+        if s2 == 'MaxAbs':
+            scaler.append(MaxAbsScaler())
+            s.append(s2)
+            count_scaler = count_scaler + 1
+        if s3 == 'Standard':
+            scaler.append(StandardScaler())
+            s.append(s3)
+            count_scaler = count_scaler + 1
+        if s3 == 'MinMax':
+            scaler.append(MinMaxScaler())
+            s.append(s3)
+            count_scaler = count_scaler + 1
+        if s3 == 'Robust':
+            scaler.append(RobustScaler())
+            s.append(s3)
+            count_scaler = count_scaler + 1
+        if s3 == 'MaxAbs':
+            scaler.append(MaxAbsScaler())
+            s.append(s3)
+            count_scaler = count_scaler + 1
+        if s4 == 'Standard':
+            scaler.append(StandardScaler())
+            s.append(s4)
+            count_scaler = count_scaler + 1
+        if s4 == 'MinMax':
+            scaler.append(MinMaxScaler())
+            s.append(s4)
+            count_scaler = count_scaler + 1
+        if s4 == 'Robust':
+            scaler.append(RobustScaler())
+            s.append(s4)
+            count_scaler = count_scaler + 1
+        if s4 == 'MaxAbs':
+            scaler.append(MaxAbsScaler())
+            s.append(s4)
+            count_scaler = count_scaler + 1
+        if e1 == 'Ordinal':
+            e.append(e1)
             # 인코딩
-            train_cat_encoded = encoder.fit_transform(train_cat)
-            test_cat_encoded = encoder.fit_transform(test_cat)
+            X_train_cat_encoded = OrdinalEncoder().fit_transform(X_train_cat)
+            X_test_cat_encoded = OrdinalEncoder().fit_transform(X_test_cat)
             # 데이터 프레임으로 변환
-            train_cat_encoded = pd.DataFrame(train_cat_encoded, columns=list(train_cat))
-            test_cat_encoded = pd.DataFrame(test_cat_encoded, columns=list(test_cat))
-        if e == 'LabelEncoder':
+            X_train_cat_encoded = pd.DataFrame(X_train_cat_encoded, columns=list(X_train_cat))
+            X_test_cat_encoded = pd.DataFrame(X_test_cat_encoded, columns=list(X_test_cat))
+            count_encoder = count_encoder + 1
+        if e1 == 'Label':
+            e.append(e1)
             encoder = LabelEncoder()
-            # train_cat인코딩
-            train_cat_encoded_0 = encoder.fit_transform(train_cat['STATE'])
-            train_cat_encoded_1 = encoder.fit_transform(train_cat['SEX'])
-            train_cat_encoded_2 = encoder.fit_transform(train_cat['RECOVD'])
-            train_cat_encoded_3 = encoder.fit_transform(train_cat['OTHER_MEDS'])
-            train_cat_encoded_4 = encoder.fit_transform(train_cat['CUR_ILL'])
-            train_cat_encoded_5 = encoder.fit_transform(train_cat['VAX_MANU'])
-            train_cat_encoded_6 = encoder.fit_transform(train_cat['LEVEL'])
-            # train_cat 데이터 프레임으로 변환
-            train_cat_encoded_0 = pd.DataFrame(train_cat_encoded_0, columns=['STATE'])
-            train_cat_encoded_1 = pd.DataFrame(train_cat_encoded_1, columns=['SEX'])
-            train_cat_encoded_2 = pd.DataFrame(train_cat_encoded_2, columns=['RECOVD'])
-            train_cat_encoded_3 = pd.DataFrame(train_cat_encoded_3, columns=['OTHER_MEDS'])
-            train_cat_encoded_4 = pd.DataFrame(train_cat_encoded_4, columns=['CUR_ILL'])
-            train_cat_encoded_5 = pd.DataFrame(train_cat_encoded_5, columns=['VAX_MANU'])
-            train_cat_encoded_6 = pd.DataFrame(train_cat_encoded_6, columns=['LEVEL'])
-            # train_cat 데이터프레임 합치기
-            train_cat_encoded = pd.concat([train_cat_encoded_0, train_cat_encoded_1,
-                                           train_cat_encoded_2, train_cat_encoded_3,
-                                           train_cat_encoded_4,
-                                           train_cat_encoded_5, train_cat_encoded_6], axis=1)
-            # test_cat인코딩
-            test_cat_encoded_0 = encoder.fit_transform(test_cat['STATE'])
-            test_cat_encoded_1 = encoder.fit_transform(test_cat['SEX'])
-            test_cat_encoded_2 = encoder.fit_transform(test_cat['RECOVD'])
-            test_cat_encoded_3 = encoder.fit_transform(test_cat['OTHER_MEDS'])
-            test_cat_encoded_4 = encoder.fit_transform(test_cat['CUR_ILL'])
-            test_cat_encoded_5 = encoder.fit_transform(test_cat['VAX_MANU'])
-            test_cat_encoded_6 = encoder.fit_transform(test_cat['LEVEL'])
-            # test_cat 데이터 프레임으로 변환
-            test_cat_encoded_0 = pd.DataFrame(test_cat_encoded_0, columns=['STATE'])
-            test_cat_encoded_1 = pd.DataFrame(test_cat_encoded_1, columns=['SEX'])
-            test_cat_encoded_2 = pd.DataFrame(test_cat_encoded_2, columns=['RECOVD'])
-            test_cat_encoded_3 = pd.DataFrame(test_cat_encoded_3, columns=['OTHER_MEDS'])
-            test_cat_encoded_4 = pd.DataFrame(test_cat_encoded_4, columns=['CUR_ILL'])
-            test_cat_encoded_5 = pd.DataFrame(test_cat_encoded_5, columns=['VAX_MANU'])
-            test_cat_encoded_6 = pd.DataFrame(test_cat_encoded_6, columns=['LEVEL'])
-            # test_cat 데이터프레임 합치기
-            test_cat_encoded = pd.concat([test_cat_encoded_0, test_cat_encoded_1,
-                                          test_cat_encoded_2, test_cat_encoded_3,
-                                          test_cat_encoded_4,
-                                          test_cat_encoded_5, test_cat_encoded_6], axis=1)
+            count_encoder = count_encoder + 1
+            for i in range(0, cat_len):
+                globals()['X_train_cat_encoded{}'.format(i)] = encoder.fit_transform(X_train_cat[cat_attribs[i]])
+                globals()['X_train_cat_encoded{}'.format(i)] = pd.DataFrame(
+                    globals()['X_train_cat_encoded{}'.format(i)],
+                    columns=[cat_attribs[i]])
+                globals()['X_test_cat_encoded{}'.format(i)] = encoder.fit_transform(X_test_cat[cat_attribs[i]])
+                globals()['X_test_cat_encoded{}'.format(i)] = pd.DataFrame(globals()['X_test_cat_encoded{}'.format(i)],
+                                                                           columns=[cat_attribs[i]])
+                X_train_cat_encoded = pd.concat([globals()['X_test_cat_encoded{}'.format(i)]], axis=1)
+                X_test_cat_encoded = pd.concat([globals()['X_test_cat_encoded{}'.format(i)]], axis=1)
+        if e2 == 'Ordinal':
+            e.append(e2)
+            # 인코딩
+            X_train_cat_encoded = OrdinalEncoder().fit_transform(X_train_cat)
+            X_test_cat_encoded = OrdinalEncoder().fit_transform(X_test_cat)
+            # 데이터 프레임으로 변환
+            X_train_cat_encoded = pd.DataFrame(X_train_cat_encoded, columns=list(X_train_cat))
+            X_test_cat_encoded = pd.DataFrame(X_test_cat_encoded, columns=list(X_test_cat))
+            count_encoder = count_encoder + 1
+        if e2 == 'Label':
+            e.append(e2)
+            encoder = LabelEncoder()
+            count_encoder = count_encoder + 1
+            list_of_train = []
+            list_of_test = []
+            for i in range(0, cat_len):
+                globals()['X_train_cat_encoded{}'.format(i)] = encoder.fit_transform(X_train_cat[cat_attribs[i]])
+                globals()['X_train_cat_encoded{}'.format(i)] = pd.DataFrame(
+                    globals()['X_train_cat_encoded{}'.format(i)],
+                    columns=[cat_attribs[i]])
+                globals()['X_test_cat_encoded{}'.format(i)] = encoder.fit_transform(X_test_cat[cat_attribs[i]])
+                globals()['X_test_cat_encoded{}'.format(i)] = pd.DataFrame(globals()['X_test_cat_encoded{}'.format(i)],
+                                                                           columns=[cat_attribs[i]])
+                list_of_train.append(globals()['X_train_cat_encoded{}'.format(i)])
+                list_of_test.append(globals()['X_test_cat_encoded{}'.format(i)])
 
-        # 스케일링
-        train_num_scaled = scaler.fit_transform(train_num)
-        test_num_scaled = scaler.fit_transform(test_num)
-        # 스케일링 - 데이터 프레임으로 변환
-        train_num_scaled = pd.DataFrame(train_num_scaled, columns=['AGE_YRS', 'NUMDAYS', 'ALL_COUNT'])
-        test_num_scaled = pd.DataFrame(test_num_scaled, columns=['AGE_YRS', 'NUMDAYS', 'ALL_COUNT'])
-        # 스케일링, 인코딩 완료한 데이터들을 합친다
-        train_prepared = pd.concat([train_num_scaled, train_cat_encoded], axis=1)
-        test_prepared = pd.concat([test_num_scaled, test_cat_encoded], axis=1)
-        # 스케일링, 인코딩 완료한 데이터들을 X와 y로 나눈다
-        self.train_X = train_prepared.drop('LEVEL', axis=1)
-        self.train_y = train_prepared['LEVEL'].copy()
-        self.test_X = test_prepared.drop('LEVEL', axis=1)
-        self.test_y = test_prepared['LEVEL'].copy()
+            X_train_cat_encoded = pd.concat(list_of_train, ignore_index=True, axis=1)
+            X_test_cat_encoded = pd.concat(list_of_test, ignore_index=True, axis=1)
 
-    def fit_transform(self):
-        from sklearn.ensemble import BaggingClassifier
-        from sklearn.tree import DecisionTreeClassifier
-        self.bag_clf = BaggingClassifier(DecisionTreeClassifier(max_depth=3), n_estimators=300, max_samples=100,
-                                         bootstrap=True,
-                                         max_features=9, n_jobs=-1, oob_score=True)
-        self.bag_clf.fit(self.train_X, self.train_y)
+        count_score = 0
+        scaler_encoder = []
+        score = []
+        for i in range(0, count_scaler):
+            for j in range(0, count_encoder):
+                string = s[i] + '&' + e[j]
+                scaler_encoder.append(string)
+                # 스케일링
+                X_train_num_scaled = scaler[i].fit_transform(X_train_num)
+                X_test_num_scaled = scaler[i].fit_transform(X_test_num)
+                # 스케일링 - 데이터 프레임으로 변환
+                X_train_num_scaled = pd.DataFrame(X_train_num_scaled, columns=num_attribs)
+                X_test_num_scaled = pd.DataFrame(X_test_num_scaled, columns=num_attribs)
+                # 스케일링, 인코딩 완료한 데이터들을 합친다
+                X_train_prepared = pd.concat([X_train_num_scaled, X_train_cat_encoded], axis=1)
+                X_test_prepared = pd.concat([X_test_num_scaled, X_test_cat_encoded], axis=1)
+                bag_clf = BaggingClassifier(DecisionTreeClassifier(max_depth=3), n_estimators=300, max_samples=100,
+                                            bootstrap=True,
+                                            max_features=9, n_jobs=-1)
+                self.bag_clf = bag_clf
+                self.X_train_prepared = X_train_prepared
+                self.y_test = y_test
+                bag_clf.fit(X_train_prepared, y_train)
+                y_pred = bag_clf.predict(X_test_prepared)
+                score.append(accuracy_score(y_test, y_pred))
+                count_score = count_score + 1
+
+        for i in range(count_score - 1):  # 리스트의 크기-1만큼 반복
+            for j in range(i + 1, len(score)):  # 해당 인덱스+1부터, 리스트 크기만큼 반복
+                if score[i] < score[j]:  # 인덱스의 값이 비교 인덱스보다 더 크다면
+                    score[i], score[j] = score[j], score[i]  # swap 해주기
+                    scaler_encoder[i], scaler_encoder[j] = scaler_encoder[j], scaler_encoder[i]
+        result = []
+        for i in range(0, count_score):
+            a = []
+            a.append(i + 1)
+            a.append(scaler_encoder[i])
+            a.append(score[i])
+            result.append(a)
+
+        table = pd.DataFrame(result, columns=['Rank', 'Scaler & Encoder', 'Accuracy'])
+        return table
+
 
     def predict(self, num):
-        some_data = self.test_X.iloc[:num]
-        some_labels = self.test_y.iloc[:num]
-        print('실제: ', some_labels.values)
-        print('예측: ', self.bag_clf.predict(some_data))
+        some_data = self.X_train_prepared.iloc[:num]
+        some_labels = self.y_test.iloc[:num]
+        print('Actual Data: ', some_labels.values)
+        print('Predict: ', self.bag_clf.predict(some_data))
 
-    def score(self):
-        from sklearn.metrics import accuracy_score
-        y_pred = self.bag_clf.predict(self.test_X)
-        print('accuarcy score: ', accuracy_score(self.test_y, y_pred))
 
 def outliers_iqr(df, feature):
     out_indexer = []
@@ -290,8 +380,8 @@ def outliers_iqr(df, feature):
 #예시 실행 코드
 data = VAERS()  # 클래스 선언
 data.preprocess()  # 전처리 함수 사용 - 이 때 csv 파일 3개가 디렉토리에 있다고 가정함
-data.split(0.2, 42)
-data.scaling('MinMaxScaler', 'OrdinalEncoder')
-data.fit_transform()  # BaggingClassifier 훈련
+X_train_num, X_train_cat, y_train, X_test_num, X_test_cat, y_test = data.split()
+table = data.scaling_encoding(X_train_num, X_train_cat, y_train, X_test_num, X_test_cat,  y_test, 'Standard', 'MinMax',
+                         'MaxAbs', 'Robust', 'Ordinal', 'Label')
+print(table)
 data.predict(10)  # 10개 예측 출력
-data.score()  # 정확도 출력
