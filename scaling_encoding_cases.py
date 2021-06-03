@@ -1,3 +1,5 @@
+import pandas as pd
+import numpy as np
 from sklearn.ensemble import BaggingClassifier
 from sklearn.tree import DecisionTreeClassifier
 from sklearn.metrics import accuracy_score
@@ -9,7 +11,7 @@ from sklearn.preprocessing import LabelEncoder
 from sklearn.preprocessing import OrdinalEncoder
 
 
-def scaling_encoding(X_train_num, X_train_cat, y_train, X_test_cat, X_test_num, y_test, s1, s2,
+def scaling_encoding_cases(X_train_num, X_train_cat, y_train, X_test_num,  X_test_cat, y_test, s1, s2,
                      s3, s4, e1, e2=None):
     s = []
     e = []
@@ -176,6 +178,6 @@ def scaling_encoding(X_train_num, X_train_cat, y_train, X_test_cat, X_test_num, 
     table = pd.DataFrame(result, columns=['Rank', 'Scaler & Encoder', 'Accuracy'])
     return table
 
-
-scaling_encoding(X_train_num, X_train_cat, y_train, X_test_cat, X_test_num, y_test, 'Standard', 'MinMax',
-                 'Robust', 'MaxAbs', 'Ordinal', 'Label')
+#
+# scaling_encoding(X_train_num, X_train_cat, y_train, X_test_cat, X_test_num, y_test, 'Standard', 'MinMax',
+#                  'Robust', 'MaxAbs', 'Ordinal', 'Label')

@@ -1,5 +1,6 @@
 import pandas as pd
 import numpy as np
+import scaling_encoding_cases as se
 from collections import Counter
 from sklearn.ensemble import BaggingClassifier
 from sklearn.tree import DecisionTreeClassifier
@@ -14,6 +15,10 @@ from sklearn.preprocessing import OrdinalEncoder
 
 
 class VAERS:
+    # function: __init__()
+    # input: none
+    # output: none
+    # description: This function loads the VARES dataset and stores it in a DataFrame
     def __init__(self):
         import pandas as pd
         data_frame = pd.read_csv('2021VAERSDATA.csv', encoding='ISO-8859-1', low_memory=False)
@@ -29,24 +34,31 @@ class VAERS:
             ['STATE', 'AGE_YRS', 'SEX', 'RECOVD', 'NUMDAYS', 'OTHER_MEDS', 'CUR_ILL', 'ALLERGIES', 'VAX_MANU',
              'SYMPTOM1']]
 
-
-
+    # function: preprocess
+    # input: none
+    # output: none
+    # description: This function performs the preprocessing of the VARES dataset previously obtained from the get_data() function.
     def preprocess(self):
+        # AGE_YRS
         age_outlier_index = outliers_iqr(self.data, ['AGE_YRS'])
-        self.data = self.data.drop(age_outlier_index, axis=0).reset_index(drop=True)  # 행 3개 드랍
+        # drop outliers in data feature'AGE_YRS'
+        self.data = self.data.drop(age_outlier_index, axis=0).reset_index(drop=True)
         median = self.data['AGE_YRS'].median()
         self.data['AGE_YRS'].fillna(median, inplace=True)
+        # NUMDAYS
         num_outlier_index = outliers_iqr(self.data, ['NUMDAYS'])
-        self.data = self.data.drop(num_outlier_index, axis=0).reset_index(drop=True)  # 행 5884개 드랍
+        # drop doutliers in feature 'NUMDAYS'
+        self.data = self.data.drop(num_outlier_index, axis=0).reset_index(drop=True)
         median = self.data['NUMDAYS'].median()
         self.data['NUMDAYS'].fillna(median, inplace=True)
         # STATE
         self.data['STATE'].fillna(method='ffill', inplace=True)
         # OTHER_MEDS, CUR_ILL, ALLERGIES
+        # Change the data to all uppercase.
         self.data['OTHER_MEDS'] = self.data['OTHER_MEDS'].str.upper()
         self.data['CUR_ILL'] = self.data['CUR_ILL'].str.upper()
         self.data['ALLERGIES'] = self.data['ALLERGIES'].str.upper()
-
+        # Replace all words that mean no data with "np.NaN".
         self.data['OTHER_MEDS'].replace(
             ['NaN', '', 'NONE', 'N/A', 'NONE.', 'NA', 'NO', 'UNKNOWN', 'NONE KNOWN', 'NKA', 'NKDA', 'NONE KNOWN',
              'NONE REPORTED'], np.NaN, inplace=True)
@@ -56,15 +68,13 @@ class VAERS:
         self.data['ALLERGIES'].replace(
             ['NaN', '', 'NONE', 'N/A', 'NONE.', 'NA', 'NO', 'UNKNOWN', 'NONE KNOWN', 'NKA', 'NKDA',
              'NO KNOWN ALLERGIES', 'NONE KNOWN', 'NONE REPORTED'], np.NaN, inplace=True)
-
+        # Replace all NaN with the word "None".
         self.data['OTHER_MEDS'].fillna('None', inplace=True)
         self.data['CUR_ILL'].fillna('None', inplace=True)
         self.data['ALLERGIES'].fillna('None', inplace=True)
 
-        # Allergies를 가지고 있는 개수로 변경
-        # ALL_COUNT 행 만들어서 넣고
-        # 이후에 ALLERGIES 삭제
-
+        # ALLERGIES
+        # Replace the allergy data with the number of allergies and put it in a new column called ALL_COUNT.
         self.data['ALL_COUNT'] = 0
         for key, value in self.data['ALLERGIES'].iteritems():
             count = 0
@@ -77,44 +87,45 @@ class VAERS:
                 self.data['ALL_COUNT'].loc[key] = 0
             else:
                 self.data['ALL_COUNT'].loc[key] = count
-
+        # Drop column ALLERGIES
         self.data.drop('ALLERGIES', axis=1, inplace=True)
-
-        # OTHER_MEDS 처리
-        # 있으면 1 없으면 0
+        # OTHER_MEDS
+        # Treat as 1 if data exists and 0 if data is not present
         for key, value in self.data['OTHER_MEDS'].iteritems():
             if value == 'None':
                 self.data['OTHER_MEDS'][key] = 0
             else:
                 self.data['OTHER_MEDS'][key] = 1
 
-        # CUR_ILL 처리
-        # 있으면 1 없으면 0
+        # CUR_ILL
+        # Treat as 1 if data exists and 0 if data is not present
         for key, value in self.data['CUR_ILL'].iteritems():
             if value == 'None':
                 self.data['CUR_ILL'][key] = 0
             else:
                 self.data['CUR_ILL'][key] = 1
-
-        counts = self.data['SYMPTOM1'].value_counts()
-
-        pd.DataFrame(counts, columns=['symptom', 'case'])
-
-        for key, value in self.data['SYMPTOM1'].iteritems():
-            if counts[value] < 100:
-                self.data.drop(key, axis=0, inplace=True)
         # SEX
         # Fill null value using method = 'ffill'
         self.data['SEX'].replace('U', np.nan, inplace=True)
         self.data['SEX'].fillna(method='ffill', inplace=True)
 
         # RECOVD
+        # Fill null value using method = 'ffill'
         self.data['RECOVD'].replace(['U', ' '], np.nan, inplace=True)
         self.data['RECOVD'].fillna(method='ffill', inplace=True)
-
+        # SYMPTOM1
+        # Create a data frame count for the number of symptoms.
+        counts = data['SYMPTOM1'].value_counts()
+        pd.DataFrame(counts, columns=['symptom', 'case'])
+        # Remove symptoms expressed in less than 100 people.
+        for key, value in data['SYMPTOM1'].iteritems():
+            if counts[value] < 100:
+                data.drop(key, axis=0, inplace=True)
+        # Delete data unrelated to adverse vaccine symptoms
         self.data = self.data[self.data.SYMPTOM1 != 'Product administered to patient of inappropriate age']
-
         self.data = self.data[self.data.SYMPTOM1 != 'Incorrect dose administered']
+        # Categorize side effects into stages
+        # Create a dictionary for mapping
         symptom_to_levels = {
             'No adverse event': 0,
             'Unevaluable event': 0,
@@ -168,7 +179,7 @@ class VAERS:
             'Cerebrovascular accident': 4,
             'SARS-CoV-2 test positive': 4
         }
-
+        # Replace SYMPTOM1 with LEVEL Column
         self.data['LEVEL'] = self.data['SYMPTOM1'].apply(lambda x: symptom_to_levels[x])
         self.data.drop('SYMPTOM1', axis=1, inplace=True)
 
@@ -181,128 +192,44 @@ class VAERS:
         X_train_cat = X_train.drop(['AGE_YRS', 'NUMDAYS', 'ALL_COUNT'], axis=1)
         X_test_num = X_test[['AGE_YRS', 'NUMDAYS', 'ALL_COUNT']]
         X_test_cat = X_test.drop(['AGE_YRS', 'NUMDAYS', 'ALL_COUNT'], axis=1)
+        self.X_train_num = X_train_num
+        self.X_train_cat = X_train_cat
+        self.y_train = y_train
+        self.X_test_num = X_test_num
+        self.X_test_cat = X_test_cat
+        self.y_test = y_test
+
         return X_train_num, X_train_cat, y_train, X_test_num, X_test_cat, y_test
 
-    def scaling_encoding(self, X_train_num, X_train_cat, y_train,  X_test_num, X_test_cat, y_test, s1, s2,
-                         s3, s4, e1, e2=None):
-        s = []
-        e = []
-        scaler = []
-        num_attribs = list(X_train_num)
-        cat_attribs = list(X_train_cat)
-        cat_len = len(X_train_cat.columns)
-
-        count_scaler = 0
-        count_encoder = 0
-
-        if s1 == 'Standard':
-            scaler.append(StandardScaler())
-            s.append(s1)
-            count_scaler = count_scaler + 1
-        if s1 == 'MinMax':
-            scaler.append(MinMaxScaler())
-            s.append(s1)
-            count_scaler = count_scaler + 1
-        if s1 == 'Robust':
-            scaler.append(RobustScaler())
-            s.append(s1)
-            count_scaler = count_scaler + 1
-        if s1 == 'MaxAbs':
-            scaler.append(MaxAbsScaler())
-            s.append(s1)
-            count_scaler = count_scaler + 1
-        if s2 == 'Standard':
-            scaler.append(StandardScaler())
-            s.append(s2)
-            count_scaler = count_scaler + 1
-        if s2 == 'MinMax':
-            scaler.append(MinMaxScaler())
-            s.append(s2)
-            count_scaler = count_scaler + 1
-        if s2 == 'Robust':
-            scaler.append(RobustScaler())
-            s.append(s2)
-            count_scaler = count_scaler + 1
-        if s2 == 'MaxAbs':
-            scaler.append(MaxAbsScaler())
-            s.append(s2)
-            count_scaler = count_scaler + 1
-        if s3 == 'Standard':
-            scaler.append(StandardScaler())
-            s.append(s3)
-            count_scaler = count_scaler + 1
-        if s3 == 'MinMax':
-            scaler.append(MinMaxScaler())
-            s.append(s3)
-            count_scaler = count_scaler + 1
-        if s3 == 'Robust':
-            scaler.append(RobustScaler())
-            s.append(s3)
-            count_scaler = count_scaler + 1
-        if s3 == 'MaxAbs':
-            scaler.append(MaxAbsScaler())
-            s.append(s3)
-            count_scaler = count_scaler + 1
-        if s4 == 'Standard':
-            scaler.append(StandardScaler())
-            s.append(s4)
-            count_scaler = count_scaler + 1
-        if s4 == 'MinMax':
-            scaler.append(MinMaxScaler())
-            s.append(s4)
-            count_scaler = count_scaler + 1
-        if s4 == 'Robust':
-            scaler.append(RobustScaler())
-            s.append(s4)
-            count_scaler = count_scaler + 1
-        if s4 == 'MaxAbs':
-            scaler.append(MaxAbsScaler())
-            s.append(s4)
-            count_scaler = count_scaler + 1
-        if e1 == 'Ordinal':
-            e.append(e1)
+    def scaling_encoding(self, s, e):
+        num_attribs = list(self.X_train_num)
+        cat_attribs = list(self.X_train_cat)
+        cat_len = len(self.X_train_cat.columns)
+        if s == 'Standard':
+            scaler = StandardScaler()
+        if s == 'MinMax':
+            scaler = MinMaxScaler()
+        if s == 'Robust':
+            scaler = RobustScaler()
+        if s == 'MaxAbs':
+            scaler = MaxAbsScaler()
+        if e == 'Ordinal':
+            encoder = OrdinalEncoder()
             # 인코딩
-            X_train_cat_encoded = OrdinalEncoder().fit_transform(X_train_cat)
-            X_test_cat_encoded = OrdinalEncoder().fit_transform(X_test_cat)
+            X_train_cat_encoded = encoder.fit_transform(self.X_train_cat)
+            X_test_cat_encoded = encoder.fit_transform(self.X_test_cat)
             # 데이터 프레임으로 변환
-            X_train_cat_encoded = pd.DataFrame(X_train_cat_encoded, columns=list(X_train_cat))
-            X_test_cat_encoded = pd.DataFrame(X_test_cat_encoded, columns=list(X_test_cat))
-            count_encoder = count_encoder + 1
-        if e1 == 'Label':
-            e.append(e1)
+            X_train_cat_encoded = pd.DataFrame(X_train_cat_encoded, columns=list(self.X_train_cat))
+            X_test_cat_encoded = pd.DataFrame(X_test_cat_encoded, columns=list(self.X_test_cat))
+        if e == 'Label':
             encoder = LabelEncoder()
-            count_encoder = count_encoder + 1
-            for i in range(0, cat_len):
-                globals()['X_train_cat_encoded{}'.format(i)] = encoder.fit_transform(X_train_cat[cat_attribs[i]])
-                globals()['X_train_cat_encoded{}'.format(i)] = pd.DataFrame(
-                    globals()['X_train_cat_encoded{}'.format(i)],
-                    columns=[cat_attribs[i]])
-                globals()['X_test_cat_encoded{}'.format(i)] = encoder.fit_transform(X_test_cat[cat_attribs[i]])
-                globals()['X_test_cat_encoded{}'.format(i)] = pd.DataFrame(globals()['X_test_cat_encoded{}'.format(i)],
-                                                                           columns=[cat_attribs[i]])
-                X_train_cat_encoded = pd.concat([globals()['X_test_cat_encoded{}'.format(i)]], axis=1)
-                X_test_cat_encoded = pd.concat([globals()['X_test_cat_encoded{}'.format(i)]], axis=1)
-        if e2 == 'Ordinal':
-            e.append(e2)
-            # 인코딩
-            X_train_cat_encoded = OrdinalEncoder().fit_transform(X_train_cat)
-            X_test_cat_encoded = OrdinalEncoder().fit_transform(X_test_cat)
-            # 데이터 프레임으로 변환
-            X_train_cat_encoded = pd.DataFrame(X_train_cat_encoded, columns=list(X_train_cat))
-            X_test_cat_encoded = pd.DataFrame(X_test_cat_encoded, columns=list(X_test_cat))
-            count_encoder = count_encoder + 1
-        if e2 == 'Label':
-            e.append(e2)
-            encoder = LabelEncoder()
-            count_encoder = count_encoder + 1
             list_of_train = []
             list_of_test = []
             for i in range(0, cat_len):
-                globals()['X_train_cat_encoded{}'.format(i)] = encoder.fit_transform(X_train_cat[cat_attribs[i]])
-                globals()['X_train_cat_encoded{}'.format(i)] = pd.DataFrame(
-                    globals()['X_train_cat_encoded{}'.format(i)],
+                globals()['X_train_cat_encoded{}'.format(i)] = encoder.fit_transform(self.X_train_cat[cat_attribs[i]])
+                globals()['X_train_cat_encoded{}'.format(i)] = pd.DataFrame(globals()['X_train_cat_encoded{}'.format(i)],
                     columns=[cat_attribs[i]])
-                globals()['X_test_cat_encoded{}'.format(i)] = encoder.fit_transform(X_test_cat[cat_attribs[i]])
+                globals()['X_test_cat_encoded{}'.format(i)] = encoder.fit_transform(self.X_test_cat[cat_attribs[i]])
                 globals()['X_test_cat_encoded{}'.format(i)] = pd.DataFrame(globals()['X_test_cat_encoded{}'.format(i)],
                                                                            columns=[cat_attribs[i]])
                 list_of_train.append(globals()['X_train_cat_encoded{}'.format(i)])
@@ -310,58 +237,31 @@ class VAERS:
 
             X_train_cat_encoded = pd.concat(list_of_train, ignore_index=True, axis=1)
             X_test_cat_encoded = pd.concat(list_of_test, ignore_index=True, axis=1)
-
-        count_score = 0
-        scaler_encoder = []
-        score = []
-        for i in range(0, count_scaler):
-            for j in range(0, count_encoder):
-                string = s[i] + '&' + e[j]
-                scaler_encoder.append(string)
-                # 스케일링
-                X_train_num_scaled = scaler[i].fit_transform(X_train_num)
-                X_test_num_scaled = scaler[i].fit_transform(X_test_num)
-                # 스케일링 - 데이터 프레임으로 변환
-                X_train_num_scaled = pd.DataFrame(X_train_num_scaled, columns=num_attribs)
-                X_test_num_scaled = pd.DataFrame(X_test_num_scaled, columns=num_attribs)
-                # 스케일링, 인코딩 완료한 데이터들을 합친다
-                X_train_prepared = pd.concat([X_train_num_scaled, X_train_cat_encoded], axis=1)
-                X_test_prepared = pd.concat([X_test_num_scaled, X_test_cat_encoded], axis=1)
-                bag_clf = BaggingClassifier(DecisionTreeClassifier(max_depth=3), n_estimators=300, max_samples=100,
-                                            bootstrap=True,
-                                            max_features=9, n_jobs=-1)
-                self.bag_clf = bag_clf
-                self.X_train_prepared = X_train_prepared
-                self.y_test = y_test
-                bag_clf.fit(X_train_prepared, y_train)
-                y_pred = bag_clf.predict(X_test_prepared)
-                score.append(accuracy_score(y_test, y_pred))
-                count_score = count_score + 1
-
-        for i in range(count_score - 1):  # 리스트의 크기-1만큼 반복
-            for j in range(i + 1, len(score)):  # 해당 인덱스+1부터, 리스트 크기만큼 반복
-                if score[i] < score[j]:  # 인덱스의 값이 비교 인덱스보다 더 크다면
-                    score[i], score[j] = score[j], score[i]  # swap 해주기
-                    scaler_encoder[i], scaler_encoder[j] = scaler_encoder[j], scaler_encoder[i]
-        result = []
-        for i in range(0, count_score):
-            a = []
-            a.append(i + 1)
-            a.append(scaler_encoder[i])
-            a.append(score[i])
-            result.append(a)
-
-        table = pd.DataFrame(result, columns=['Rank', 'Scaler & Encoder', 'Accuracy'])
-        return table
+        # 스케일링
+        X_train_num_scaled = scaler.fit_transform(self.X_train_num)
+        X_test_num_scaled = scaler.fit_transform(self.X_test_num)
+        # 스케일링 - 데이터 프레임으로 변환
+        X_train_num_scaled = pd.DataFrame(X_train_num_scaled, columns=num_attribs)
+        X_test_num_scaled = pd.DataFrame(X_test_num_scaled, columns=num_attribs)
+        # 스케일링, 인코딩 완료한 데이터들을 합친다
+        self.X_train_prepared = pd.concat([X_train_num_scaled, X_train_cat_encoded], axis=1)
+        self.X_test_prepared = pd.concat([X_test_num_scaled, X_test_cat_encoded], axis=1)
+        self.bag_clf = BaggingClassifier(DecisionTreeClassifier(max_depth=3), n_estimators=300, max_samples=100,
+                                    bootstrap=True,
+                                    max_features=9, n_jobs=-1)
+        self.bag_clf.fit(self.X_train_prepared, self.y_train)
 
 
     def predict(self, num):
-        some_data = self.X_train_prepared.iloc[:num]
+        some_data = self.X_test_prepared.iloc[:num]
         some_labels = self.y_test.iloc[:num]
         print('Actual Data: ', some_labels.values)
         print('Predict: ', self.bag_clf.predict(some_data))
 
-
+# function: outliers_iqr
+# input: Dataframe, a feature of the dataframe
+# output: 1D array
+# description: This function returns an array of indexes of rows where the outlier exists.
 def outliers_iqr(df, feature):
     out_indexer = []
     for i in feature:
@@ -377,11 +277,13 @@ def outliers_iqr(df, feature):
     outlier_index = [i for i, v in out_indexer.items() if v > 0]
     return outlier_index
 
-#예시 실행 코드
-data = VAERS()  # 클래스 선언
-data.preprocess()  # 전처리 함수 사용 - 이 때 csv 파일 3개가 디렉토리에 있다고 가정함
-X_train_num, X_train_cat, y_train, X_test_num, X_test_cat, y_test = data.split()
-table = data.scaling_encoding(X_train_num, X_train_cat, y_train, X_test_num, X_test_cat,  y_test, 'Standard', 'MinMax',
-                         'MaxAbs', 'Robust', 'Ordinal', 'Label')
-print(table)
-data.predict(10)  # 10개 예측 출력
+#Example Execution Code
+data = VAERS()  # Class Declaration
+data.preprocess()  # Use preprocessing function - suppose three csv files are in the directory
+X_train_num, X_train_cat, y_train, X_test_num, X_test_cat, y_test = data.split() # Split the data
+# Print the accuracy of all possible scaling and encoding combinations
+table = se.scaling_encoding_cases(X_train_num, X_train_cat, y_train, X_test_num, X_test_cat,  y_test, 'Standard', 'MinMax', 'MaxAbs', 'Robust', 'Ordinal', 'Label')
+print(table) # MinMax Scaling, Label encoding is the best.
+
+data.scaling_encoding('MinMax', 'Label')
+data.predict(10)  # Print 10 predictions
