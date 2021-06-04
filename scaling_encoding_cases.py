@@ -30,8 +30,8 @@ description: This function receives input from data, scaling methods, and encodi
 '''
 
 
-def scaling_encoding_cases(X_train_num, X_train_cat, y_train, X_test_num,  X_test_cat, y_test, s1='MinMax', s2=None,
-                     s3=None, s4=None, e1='Label', e2=None):
+def scaling_encoding_cases(X_train_num, X_train_cat, y_train, X_test_num,  X_test_cat, y_test, s1=None, s2=None,
+                     s3=None, s4=None, e1=None, e2=None):
     s = [] # List to store scalers
     e = [] # List to store encoders
     scaler = [] # List to store information about the scaler.
