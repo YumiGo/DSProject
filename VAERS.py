@@ -34,6 +34,9 @@ class VAERS:
             ['STATE', 'AGE_YRS', 'SEX', 'RECOVD', 'NUMDAYS', 'OTHER_MEDS', 'CUR_ILL', 'ALLERGIES', 'VAX_MANU',
              'SYMPTOM1']]
 
+    def __getitem__(self, key):
+        return getattr(self, key)
+
     # function: preprocess
     # input: none
     # output: none
@@ -115,12 +118,12 @@ class VAERS:
         self.data['RECOVD'].fillna(method='ffill', inplace=True)
         # SYMPTOM1
         # Create a data frame count for the number of symptoms.
-        counts = data['SYMPTOM1'].value_counts()
+        counts = self.data['SYMPTOM1'].value_counts()
         pd.DataFrame(counts, columns=['symptom', 'case'])
         # Remove symptoms expressed in less than 100 people.
-        for key, value in data['SYMPTOM1'].iteritems():
+        for key, value in self.data['SYMPTOM1'].iteritems():
             if counts[value] < 100:
-                data.drop(key, axis=0, inplace=True)
+                self.data.drop(key, axis=0, inplace=True)
         # Delete data unrelated to adverse vaccine symptoms
         self.data = self.data[self.data.SYMPTOM1 != 'Product administered to patient of inappropriate age']
         self.data = self.data[self.data.SYMPTOM1 != 'Incorrect dose administered']
@@ -282,8 +285,9 @@ data = VAERS()  # Class Declaration
 data.preprocess()  # Use preprocessing function - suppose three csv files are in the directory
 X_train_num, X_train_cat, y_train, X_test_num, X_test_cat, y_test = data.split() # Split the data
 # Print the accuracy of all possible scaling and encoding combinations
-table = se.scaling_encoding_cases(X_train_num, X_train_cat, y_train, X_test_num, X_test_cat,  y_test, 'Standard', 'MinMax', 'MaxAbs', 'Robust', 'Ordinal', 'Label')
+# table = se.scaling_encoding_cases(X_train_num, X_train_cat, y_train, X_test_num, X_test_cat,  y_test, 'Standard', 'MinMax', 'MaxAbs', 'Robust', 'Ordinal', 'Label')
+table = se.scaling_encoding_cases(X_train_num, X_train_cat, y_train, X_test_num, X_test_cat,  y_test, '' ,'', 'MaxAbs', '', '', 'Label')
 print(table) # MinMax Scaling, Label encoding is the best.
 
-data.scaling_encoding('MinMax', 'Label')
-data.predict(10)  # Print 10 predictions
+#data.scaling_encoding('MinMax', 'Label')
+#data.predict(10)  # Print 10 predictions
